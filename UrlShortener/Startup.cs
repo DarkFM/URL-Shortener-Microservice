@@ -1,15 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace UrlShortener
 {
@@ -25,7 +21,17 @@ namespace UrlShortener
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers();
+            services.AddCors(setup =>
+            {
+                setup.AddPolicy("Any", corsBuilder =>
+                    corsBuilder
+                        .AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
+            });
+            services.AddControllers()
+                .ConfigureApiBehaviorOptions(options => 
+                    options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new Models.ErrorModel(context)));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -36,14 +42,18 @@ namespace UrlShortener
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseHttpsRedirection();
-
             app.UseRouting();
 
-            app.UseAuthorization();
+            app.UseCors("Any");
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapGet("/", async context =>
+                {
+                    context.Response.ContentType = System.Net.Mime.MediaTypeNames.Text.Html;
+                    await context.Response.WriteAsync(File.ReadAllText(env.ContentRootPath + "/Views/index.html"));
+                });
+
                 endpoints.MapControllers();
             });
         }
