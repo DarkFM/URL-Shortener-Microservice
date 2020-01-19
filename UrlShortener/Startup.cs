@@ -3,9 +3,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using UrlShortener.Domain.Repositories;
+using UrlShortener.Infrastructure;
 
 namespace UrlShortener
 {
@@ -29,9 +32,14 @@ namespace UrlShortener
                         .AllowAnyMethod()
                         .AllowAnyHeader());
             });
-            services.AddControllers()
-                .ConfigureApiBehaviorOptions(options => 
-                    options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new Models.ErrorModel(context)));
+
+            services.AddScoped<ISiteRepository, SiteRepository>();
+
+            services.AddControllers();
+
+            services.AddHttpClient();
+
+            services.AddDbContext<AppDbContext>(opts => opts.UseSqlite("Data Source=websitedata.db"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

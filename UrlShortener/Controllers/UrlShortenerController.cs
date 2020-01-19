@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
+using UrlShortener.Domain.Entities;
+using UrlShortener.Domain.Repositories;
+using UrlShortener.Filters;
 using UrlShortener.Models;
 
 namespace UrlShortener.Controllers
@@ -14,28 +13,41 @@ namespace UrlShortener.Controllers
     [Route("api/shorturl")]
     public class UrlShortenerController : ControllerBase
     {
-
         private readonly ILogger<UrlShortenerController> _logger;
-        private readonly IWebHostEnvironment _env;
+        private readonly ISiteRepository _siteRepository;
 
-        public UrlShortenerController(ILogger<UrlShortenerController> logger, IWebHostEnvironment env)
+        public UrlShortenerController(ILogger<UrlShortenerController> logger, ISiteRepository siteRepository)
         {
             _logger = logger;
-            _env = env;
+            _siteRepository = siteRepository;
         }
 
-        [HttpGet("new")]
-        public IActionResult StoreUrl([FromQuery]ApiRequest request)
+        [HttpPost("new")]
+        [ValidUrl]
+        public async Task<IActionResult> AddUrlAsync([FromForm(Name = "url")]string website)
         {
-            return Ok(request.WebSite);
+            var site = await _siteRepository.GetByUrl(website);
+            if (site == null)
+            {
+                site = _siteRepository.Add(new Website { Url = website });
+                await _siteRepository.UnitOfWork.SaveChangesAsync();
+            }
+
+            return Ok(new ApiResponse
+            {
+                OriginalUrl = site.Url,
+                ShortUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}/api/shorturl/{site.Id}"
+            });
         }
 
-
-
-        private class ApiResponse
+        [HttpGet("{siteId}")]
+        public async Task<IActionResult> RedirectToSite(int siteId)
         {
-            public string OriginalUrl { get; set; }
-            public int ShortUrl { get; set; }
+            var site = await _siteRepository.GetByIdAsync(siteId);
+            if (site == null)
+                return NotFound(new ErrorModel("invalid URL"));
+
+            return Redirect(site.Url);
         }
     }
 }

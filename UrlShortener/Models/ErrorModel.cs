@@ -1,14 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Linq;
-
-namespace UrlShortener.Models
+﻿namespace UrlShortener.Models
 {
     public class ErrorModel
     {
-        public ErrorModel(ActionContext context)
+        public ErrorModel(string error)
         {
-            var errorMessage = context.ModelState.First();
-            Error = errorMessage.Value.Errors.First().ErrorMessage;
+            Error = error;
         }
 
         public string Error { get; set; } = "invalid";
